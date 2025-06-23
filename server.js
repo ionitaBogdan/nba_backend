@@ -5,35 +5,25 @@ const fetch = require('node-fetch');
 const app = express();
 app.use(cors());
 
-const API_BASE = 'http://rest.nbaapi.com/api/PlayerDataTotals/query';
+// Add a root route to avoid 404s
+app.get('/', (req, res) => {
+  res.send('NBA proxy is live');
+});
 
 app.get('/playerdatatotals', async (req, res) => {
-    const season = req.query.season;
-    const page = req.query.page;
+  const { season, page } = req.query;
+  if (!season || !page) return res.status(400).json({ error: 'Missing params' });
 
-    if (!season || !page) {
-        return res.status(400).json({ error: 'Missing season or page parameter' });
-    }
-
-    const apiUrl = `${API_BASE}?season=${season}&pageSize=100&pageNumber=${page}`;
-
-    try {
-        const response = await fetch(apiUrl);
-        if (response.status === 404) {
-            return res.status(404).json([]);
-        }
-        if (!response.ok) {
-            return res.status(response.status).json({ error: 'API request failed' });
-        }
-        const data = await response.json();
-        res.json(data);
-    } catch (err) {
-        console.error('Proxy Error:', err);
-        res.status(500).json({ error: 'Proxy server error' });
-    }
+  try {
+    const response = await fetch(`http://rest.nbaapi.com/api/PlayerDataTotals/query?season=${season}&pageSize=100&pageNumber=${page}`);
+    if (response.status === 404) return res.status(404).json([]);
+    const data = await response.json();
+    res.json(data);
+  } catch (err) {
+    console.error('Proxy error:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
 });
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-    console.log(`Proxy server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Proxy running on port ${PORT}`));
